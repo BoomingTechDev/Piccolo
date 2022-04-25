@@ -5,7 +5,6 @@
 #include "runtime/resource/asset_manager/asset_manager.h"
 #include "runtime/resource/res_type/common/level.h"
 
-#include "runtime/function/character/character.h"
 #include "runtime/function/framework/object/object.h"
 #include "runtime/function/scene/scene_manager.h"
 
@@ -17,12 +16,6 @@ namespace Pilot
 
     void Level::clear()
     {
-        if (m_current_active_character)
-        {
-            delete m_current_active_character;
-            m_current_active_character = nullptr;
-        }
-
         for (auto& id_gobject_pair : m_gobjects)
         {
             GObject* gobject = id_gobject_pair.second;
@@ -72,16 +65,9 @@ namespace Pilot
         LevelRes level_res;
         asset_manager.loadAsset(asset_manager.getFullPath(level_res_url), level_res);
 
-        m_gravity = level_res.m_gravity;
         for (const ObjectInstanceRes& object_instance_res : level_res.m_objects)
         {
             createObject(object_instance_res);
-        }
-
-        if (level_res.m_character_index >= 0 && level_res.m_character_index < m_gobjects.size())
-        {
-            GObject* character_object  = m_gobjects[level_res.m_character_index];
-            m_current_active_character = new Character(character_object);
         }
     }
 
@@ -118,10 +104,6 @@ namespace Pilot
                 id_object_pair.second->tick(delta_time);
             }
         }
-        if (m_current_active_character)
-        {
-            m_current_active_character->tick();
-        }
         SceneManager::getInstance().syncSceneObjects();
     }
 
@@ -145,10 +127,6 @@ namespace Pilot
             assert(object);
             if (object)
             {
-                if (m_current_active_character && m_current_active_character->getObject() == object)
-                {
-                    m_current_active_character->setObject(nullptr);
-                }
                 object->destory();
             }
             delete object;

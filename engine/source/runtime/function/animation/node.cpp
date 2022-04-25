@@ -196,6 +196,9 @@ namespace Pilot
     //-----------------------------------------------------------------------
     void Node::resetToInitialPose(void)
     {
+        // m_position = {};// m_initial_position;
+        // m_orientation = { {},0,0,0,1 };// m_initial_orientation;
+        // m_scale = { {},1,1,1 };//m_initial_scale;
         m_position    = m_initial_position;
         m_orientation = m_initial_orientation;
         m_scale       = m_initial_scale;

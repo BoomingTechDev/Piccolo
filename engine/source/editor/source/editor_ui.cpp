@@ -2,6 +2,7 @@
 
 #include "editor/include/editor.h"
 
+#include "runtime/core/base/macro.h"
 #include "runtime/core/meta/reflection/reflection.h"
 
 #include "runtime/platform/path/path.h"
@@ -28,10 +29,9 @@ namespace Pilot
 {
     std::vector<std::pair<std::string, bool>> g_editor_node_state_array;
     int                                       g_node_depth = -1;
-    void                                      DrawVecControl(const std::string& label,
-                                                             Pilot::Vector3&    values,
-                                                             float              resetValue  = 0.0f,
-                                                             float              columnWidth = 100.0f);
+    void DrawVecControl(const std::string &label, Pilot::Vector3 &values, float resetValue = 0.0f, float columnWidth = 100.0f);
+    void DrawVecControl(const std::string &label, Pilot::Quaternion &values, float resetValue = 0.0f, float columnWidth = 100.0f);
+
     EditorUI::EditorUI(PilotEditor* editor) : m_editor(editor)
     {
         Path&       path_service            = Path::getInstance();
@@ -71,25 +71,9 @@ namespace Pilot
             {
                 Transform* trans_ptr = static_cast<Transform*>(value_ptr);
 
-				Vector3 degrees_val;
-
-				degrees_val.x = trans_ptr->m_rotation.getRoll(false).valueDegrees();
-				degrees_val.y = trans_ptr->m_rotation.getPitch(false).valueDegrees();
-				degrees_val.z = trans_ptr->m_rotation.getYaw(false).valueDegrees();
-
-				DrawVecControl("Position", trans_ptr->m_position);
-				DrawVecControl("Rotation", degrees_val);
-				DrawVecControl("Scale", trans_ptr->m_scale);
-
-                trans_ptr->m_rotation.w = Math::cos(Math::degreesToRadians(degrees_val.y / 2)) * Math::cos(Math::degreesToRadians(degrees_val.z / 2)) * Math::cos(Math::degreesToRadians(degrees_val.x / 2)) +
-					Math::sin(Math::degreesToRadians(degrees_val.y / 2)) * Math::sin(Math::degreesToRadians(degrees_val.z / 2)) * Math::sin(Math::degreesToRadians(degrees_val.x / 2));
-                trans_ptr->m_rotation.x = Math::sin(Math::degreesToRadians(degrees_val.y / 2)) * Math::cos(Math::degreesToRadians(degrees_val.z / 2)) * Math::cos(Math::degreesToRadians(degrees_val.x / 2)) -
-					Math::cos(Math::degreesToRadians(degrees_val.y / 2)) * Math::sin(Math::degreesToRadians(degrees_val.z / 2)) * Math::sin(Math::degreesToRadians(degrees_val.x / 2));
-                trans_ptr->m_rotation.y = Math::cos(Math::degreesToRadians(degrees_val.y / 2)) * Math::sin(Math::degreesToRadians(degrees_val.z / 2)) * Math::cos(Math::degreesToRadians(degrees_val.x / 2)) +
-					Math::sin(Math::degreesToRadians(degrees_val.y / 2)) * Math::cos(Math::degreesToRadians(degrees_val.z / 2)) * Math::sin(Math::degreesToRadians(degrees_val.x / 2));
-                trans_ptr->m_rotation.z = Math::cos(Math::degreesToRadians(degrees_val.y / 2)) * Math::cos(Math::degreesToRadians(degrees_val.z / 2)) * Math::sin(Math::degreesToRadians(degrees_val.x / 2)) -
-					Math::sin(Math::degreesToRadians(degrees_val.y / 2)) * Math::sin(Math::degreesToRadians(degrees_val.z / 2)) * Math::cos(Math::degreesToRadians(degrees_val.x / 2));
-                trans_ptr->m_rotation.normalise();
+                DrawVecControl("Position", trans_ptr->m_position);
+                DrawVecControl("Rotation", trans_ptr->m_rotation);
+                DrawVecControl("Scale", trans_ptr->m_scale);
 
                 drawSelectedEntityAxis();
             }
@@ -655,10 +639,8 @@ namespace Pilot
                 if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
                 {
                     m_is_editor_mode = !m_is_editor_mode;
-                    drawSelectedEntityAxis();
                     g_is_editor_mode = true;
                     SceneManager::getInstance().setMainViewMatrix(m_tmp_uistate->m_editor_camera->getViewMatrix());
-                    drawSelectedEntityAxis();
                 }
             }
             m_io->setEditorMode(m_is_editor_mode);
@@ -763,38 +745,9 @@ namespace Pilot
 
     void EditorUI::onFileContentItemClicked(EditorFileNode* node)
     {
-        if (node->m_file_type == "world")
-        {
-            onWorldAssetClicked(node);
-        }
-        else if (node->m_file_type == "level")
-        {
-            onLevelAssetClicked(node);
-        }
-        else if (node->m_file_type == "object")
-        {
-            onObjectAssetClicked(node);
-        }
-        else
-        {
-            LOG_ERROR("Clicked file type currently is not supported!");
-        }
-    }
+        if (node->m_file_type != "object")
+            return;
 
-    void EditorUI::onWorldAssetClicked(EditorFileNode* node)
-    {
-        WorldManager::getInstance().loadAsCurrentWorld(node->m_file_path);
-        onGObjectSelected(PILOT_INVALID_GOBJECT_ID);
-    }
-
-    void EditorUI::onLevelAssetClicked(EditorFileNode* node)
-    {
-        WorldManager::getInstance().loadAsCurrentLevel(node->m_file_path);
-        onGObjectSelected(PILOT_INVALID_GOBJECT_ID);
-    }
-
-    void EditorUI::onObjectAssetClicked(EditorFileNode* node)
-    {
         Level* level = WorldManager::getInstance().getCurrentActiveLevel();
         if (level == nullptr)
             return;
@@ -1253,7 +1206,7 @@ namespace Pilot
         }
         m_selected_object_matrix = new_model_matrix;
     }
-    void DrawVecControl(const std::string& label, Pilot::Vector3& values, float resetValue, float columnWidth)
+    void DrawVecControl(const std::string &label, Pilot::Vector3 &values, float resetValue, float columnWidth)
     {
         ImGui::PushID(label.c_str());
 
@@ -1263,14 +1216,14 @@ namespace Pilot
         ImGui::NextColumn();
 
         ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2 {0, 0});
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
 
-        float  lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+        float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
         ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4 {0.8f, 0.1f, 0.15f, 1.0f});
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4 {0.9f, 0.2f, 0.2f, 1.0f});
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4 {0.8f, 0.1f, 0.15f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.9f, 0.2f, 0.2f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
         if (ImGui::Button("X", buttonSize))
             values.x = resetValue;
         ImGui::PopStyleColor(3);
@@ -1280,9 +1233,9 @@ namespace Pilot
         ImGui::PopItemWidth();
         ImGui::SameLine();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4 {0.2f, 0.45f, 0.2f, 1.0f});
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4 {0.3f, 0.55f, 0.3f, 1.0f});
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4 {0.2f, 0.45f, 0.2f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.2f, 0.45f, 0.2f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.3f, 0.55f, 0.3f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.2f, 0.45f, 0.2f, 1.0f});
         if (ImGui::Button("Y", buttonSize))
             values.y = resetValue;
         ImGui::PopStyleColor(3);
@@ -1292,15 +1245,83 @@ namespace Pilot
         ImGui::PopItemWidth();
         ImGui::SameLine();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4 {0.1f, 0.25f, 0.8f, 1.0f});
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4 {0.2f, 0.35f, 0.9f, 1.0f});
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4 {0.1f, 0.25f, 0.8f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.2f, 0.35f, 0.9f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
         if (ImGui::Button("Z", buttonSize))
             values.z = resetValue;
         ImGui::PopStyleColor(3);
 
         ImGui::SameLine();
         ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::PopItemWidth();
+
+        ImGui::PopStyleVar();
+
+        ImGui::Columns(1);
+        ImGui::PopID();
+    }
+
+    void DrawVecControl(const std::string &label, Pilot::Quaternion &values, float resetValue, float columnWidth)
+    {
+        ImGui::PushID(label.c_str());
+
+        ImGui::Columns(2);
+        ImGui::SetColumnWidth(0, columnWidth);
+        ImGui::Text("%s", label.c_str());
+        ImGui::NextColumn();
+
+        ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
+
+        float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+        ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.9f, 0.2f, 0.2f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+        if (ImGui::Button("X", buttonSize))
+            values.x = resetValue;
+        ImGui::PopStyleColor(3);
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.2f, 0.45f, 0.2f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.3f, 0.55f, 0.3f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.2f, 0.45f, 0.2f, 1.0f});
+        if (ImGui::Button("Y", buttonSize))
+            values.y = resetValue;
+        ImGui::PopStyleColor(3);
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.2f, 0.35f, 0.9f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+        if (ImGui::Button("Z", buttonSize))
+            values.z = resetValue;
+        ImGui::PopStyleColor(3);
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.5f, 0.25f, 0.5f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.6f, 0.35f, 0.6f, 1.0f});
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.5f, 0.25f, 0.5f, 1.0f});
+        if (ImGui::Button("W", buttonSize))
+            values.w = resetValue;
+        ImGui::PopStyleColor(3);
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##W", &values.w, 0.1f, 0.0f, 0.0f, "%.2f");
         ImGui::PopItemWidth();
 
         ImGui::PopStyleVar();

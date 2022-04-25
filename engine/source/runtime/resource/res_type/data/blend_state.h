@@ -42,32 +42,6 @@ namespace Pilot
         std::vector<float>       blend_weight;
         std::vector<std::string> blend_mask_file_path;
         std::vector<float>       blend_ratio;
-        virtual ~BlendState() = default;
-        float getBlendedLength() const
-        {
-            float length = 0;
-            for (int i = 0; i < clip_count; i++)
-            {
-                auto curweight = blend_weight[i];
-                length += curweight * blend_clip_file_length[i];
-            }
-            return length;
-        }
-    };
-
-    REFLECTION_TYPE(BlendState1D)
-    CLASS(BlendState1D : public BlendState, Fields)
-    {
-        REFLECTION_BODY(BlendState);
-
-    public:
-        std::string key;
-        // enum KeyType
-        //{TypeDouble, TypeInt};
-
-        std::vector<double> values;
-
-        virtual ~BlendState1D()override {}
     };
 
 } // namespace Pilot
